@@ -1,0 +1,45 @@
+services:
+  api:
+    image: python:3.11-slim
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://photovoltaic_power:photovoltaic_power@db:5432/photovoltaic_power}
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - photovoltaic_power_net
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-photovoltaic_power}
+      POSTGRES_USER: ${POSTGRES_USER:-photovoltaic_power}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-photovoltaic_power}
+    ports:
+      - "5442:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - photovoltaic_power_net
+
+volumes:
+  postgres_data:
+
+networks:
+  photovoltaic_power_net:
+    driver: bridge
